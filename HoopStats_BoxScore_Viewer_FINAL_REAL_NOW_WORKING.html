@@ -1,0 +1,97 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HoopStats Box Score Viewer</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    h2 { color: #b30000; }
+    select { padding: 6px; font-size: 16px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: center; }
+    th { background: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h2>HoopStats Box Score Viewer</h2>
+  <label for="gameSelect">Select Game:</label>
+  <select id="gameSelect"><option>Loading games...</option></select>
+  <div id="boxScore"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabase = supabase.createClient(
+      'https://pbjslsgeelnjdenzvgq.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBianNsc2dlZWxuamRlbnpydmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxMTkyMzIsImV4cCI6MjA2NTY5NTIzMn0.LlhQEZejdoURQ67t5cZ__1loNYmz2JRRt8ccYkAJ-Iw'
+    );
+
+    async function loadGames() {
+      const { data, error } = await supabase.from('games').select('*').order('date', { ascending: false });
+      const gameSelect = document.getElementById('gameSelect');
+      if (error || !data || data.length === 0) {
+        gameSelect.innerHTML = '<option>Error loading games</option>';
+        return;
+      }
+
+      gameSelect.innerHTML = '';
+      data.forEach(game => {
+        const opt = document.createElement('option');
+        opt.value = game.id;
+        opt.textContent = `${game.date} vs ${game.opponent}`;
+        gameSelect.appendChild(opt);
+      });
+
+      gameSelect.onchange = () => displayGame(data.find(g => g.id === gameSelect.value));
+      displayGame(data[0]);
+    }
+
+    function calculatePercentage(made, miss) {
+      const total = made + miss;
+      return total > 0 ? ((made / total) * 100).toFixed(1) + "%" : "0.0%";
+    }
+
+    function renderTable(teamName, players) {
+      let html = `<h3>${teamName}</h3><table><thead><tr><th>Player</th><th>2PM</th><th>2PMiss</th><th>3PM</th><th>3PMiss</th><th>FTM</th><th>FTMiss</th><th>OREB</th><th>DREB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>FOUL</th><th>PTS</th></tr></thead><tbody>`;
+      const totals = {
+        "2PMade": 0, "2PMiss": 0, "3PMade": 0, "3PMiss": 0,
+        "FTMade": 0, "FTMiss": 0, "OREB": 0, "DREB": 0,
+        "Assists": 0, "STL": 0, "BLK": 0, "TO": 0, "Fouls": 0, "Total": 0
+      };
+
+      players.forEach(p => {
+        const name = p.name || "-";
+        const stats = ["2PMade", "2PMiss", "3PMade", "3PMiss", "FTMade", "FTMiss", "OREB", "DREB", "Assists", "STL", "BLK", "TO", "Fouls", "Total"];
+        html += `<tr><td>${name}</td>`;
+        stats.forEach(stat => {
+          const val = p[stat] || 0;
+          totals[stat] += val;
+          html += `<td>${val}</td>`;
+        });
+        html += `</tr>`;
+      });
+
+      html += `<tr><th>Totals</th>`;
+      Object.keys(totals).forEach(key => html += `<th>${totals[key]}</th>`);
+      html += `</tr></tbody></table>`;
+
+      const fgPct = calculatePercentage(totals["2PMade"] + totals["3PMade"], totals["2PMiss"] + totals["3PMiss"]);
+      const tpPct = calculatePercentage(totals["3PMade"], totals["3PMiss"]);
+      const ftPct = calculatePercentage(totals["FTMade"], totals["FTMiss"]);
+
+      html += `<p><strong>FG%:</strong> ${fgPct} &nbsp; | &nbsp; <strong>3P%:</strong> ${tpPct} &nbsp; | &nbsp; <strong>FT%:</strong> ${ftPct}</p>`;
+
+      return html;
+    }
+
+    function displayGame(game) {
+      if (!game || !game.homeTeam) return;
+      const html = renderTable("Southern Maryland Rising Stars", game.homeTeam || [])
+                 + renderTable(game.opponent || "Opponent", game.opponentTeam || []);
+      document.getElementById("boxScore").innerHTML = html;
+    }
+
+    loadGames();
+  </script>
+</body>
+</html>
