@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HoopStats JSON Converter + Uploader</title>
+  <style>
+    body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 2em; }
+    input, button { display: block; width: 100%; margin: 1em 0; padding: 0.5em; font-size: 1em; }
+    textarea { width: 100%; height: 300px; margin: 1em 0; }
+    #log { background: #eee; padding: 1em; margin-top: 1em; font-family: monospace; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>HoopStats JSON Converter + Uploader</h1>
+  <input type="file" id="csvFile" accept=".csv">
+  <input type="date" id="gameDate">
+  <input type="text" id="opponentName" placeholder="Opponent Name">
+  <button onclick="convertAndUpload()">Convert + Upload to Supabase</button>
+  <textarea id="jsonOutput" placeholder="Converted JSON will appear here..."></textarea>
+  <div id="log"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script>
+    const supabase = supabase.createClient(
+      'https://pbjslsgeelnjdenzrvgq.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBianNsc2dlZWxuamRlbnpydmdxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAxMTkyMzIsImV4cCI6MjA2NTY5NTIzMn0.LlhQEZejdoURQ67t5cZ__1loNYmz2JRRt8ccYkAJ-Iw'
+    );
+
+    function log(msg) {
+      document.getElementById("log").textContent += msg + "\n";
+      console.log(msg);
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim());
+      const rows = lines.slice(1).map(line => line.split(","));
+
+      const keyMap = {
+        Player: "name",
+        "2pm": "2PMade",
+        "2pmissed": "2PMiss",
+        "3pm": "3PMade",
+        "3pmissed": "3PMiss",
+        ftm: "FTMade",
+        ftmissed: "FTMiss",
+        oreb: "OREB",
+        dreb: "DREB",
+        assists: "Assists",
+        stl: "STL",
+        blk: "BLK",
+        to: "TO",
+        fouls: "Fouls",
+        totalPoints: "Total"
+      };
+
+      return rows.map(row => {
+        const mapped = {};
+        headers.forEach((header, j) => {
+          const mappedKey = keyMap[header];
+          if (!mappedKey) return;
+          if (mappedKey === "name") {
+            mapped[mappedKey] = row[j] ? row[j].trim() : "";
+          } else {
+            mapped[mappedKey] = Number(row[j]) || 0;
+          }
+        });
+        return mapped;
+      });
+    }
+
+    function convertAndUpload() {
+      log("⏳ Starting conversion and upload...");
+      const fileInput = document.getElementById("csvFile");
+      const gameDate = document.getElementById("gameDate").value;
+      const opponent = document.getElementById("opponentName").value;
+      const output = document.getElementById("jsonOutput");
+
+      if (!fileInput.files.length) return alert("No CSV file selected.");
+      if (!gameDate) return alert("Game date is required.");
+      if (!opponent) return alert("Opponent name is required.");
+
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        const json = parseCSV(e.target.result);
+        output.value = JSON.stringify(json, null, 2);
+        log("✅ CSV parsed. Attempting upload...");
+
+        const { error } = await supabase.from("games").insert([{
+          team: "Southern Maryland Rising Stars",
+          date: gameDate,
+          opponentName: opponent,
+          players: json,
+          opponent: []
+        }]);
+
+        if (error) {
+          log("❌ Upload failed: " + error.message);
+          alert("Upload failed: " + error.message);
+        } else {
+          log("✅ Upload successful.");
+          alert("Upload successful!");
+        }
+      };
+
+      reader.onerror = function () {
+        log("❌ Error reading CSV file.");
+        alert("File read error.");
+      };
+
+      reader.readAsText(fileInput.files[0]);
+    }
+  </script>
+</body>
+</html>
