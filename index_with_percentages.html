@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Southern Maryland Rising Stars – HoopStats</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+    h1 { color: #e4002b; text-align: center; }
+    .button-bar, .setup-bar { text-align: center; margin-bottom: 20px; }
+    select, button, input { padding: 5px 10px; font-size: 14px; margin: 5px; }
+    table { width: 100%; border-collapse: collapse; background: #222; color: #fff; }
+    th, td { border: 1px solid #555; padding: 6px; text-align: center; }
+    th { background: #e4002b; }
+    tfoot td { font-weight: bold; background: #333; }
+    .stat-buttons { display: flex; justify-content: center; gap: 4px; }
+  </style>
+</head>
+<body>
+<h1>Southern Maryland Rising Stars – HoopStats</h1>
+
+<div class="setup-bar" id="setup-bar">
+  <label>Select Players:</label>
+  <select id="playerSelect" multiple size="6">
+    <option selected>Sammy</option>
+    <option selected>Ceasar</option>
+    <option selected>Ronald</option>
+    <option selected>Khalifa</option>
+    <option selected>Kam</option>
+    <option selected>Juice</option>
+    <option>Marcus</option>
+    <option>Trent</option>
+    <option>Dylan</option>
+    <option>Logan</option>
+    <option>Jace</option>
+    <option>Roman</option>
+  </select><br>
+  <button onclick="loadSelectedPlayers()">Start Game</button>
+</div>
+
+<div class="button-bar" style="display:none;" id="gameControls">
+  <button onclick="addPlayer('home')">Add Home Player</button>
+  <button onclick="addPlayer('opponent')">Add Opponent Player</button>
+  <button onclick="zoom(0.1)">Zoom In</button>
+  <button onclick="zoom(-0.1)">Zoom Out</button>
+  <button onclick="generateBoxScore()">Generate Box Score</button>
+<button onclick="exportToCSV()">Export to CSV</button>
+</div>
+
+<h2>Home Team</h2>
+<table>
+  <thead><tr><th>Player</th><th>2PMiss</th><th>2PMade</th><th>3PMiss</th><th>3PMade</th><th>FTMiss</th><th>FTMade</th><th>OREB</th><th>DREB</th><th>STL</th><th>BLK</th><th>TO</th><th>Fouls</th><th>Assists</th><th>2P%</th><th>3P%</th><th>FG%</th><th>FT%</th><th>Total</th></tr></thead>
+  <tbody id="homeTable"></tbody>
+  <tfoot id="homeTotals"></tfoot>
+</table>
+
+<h2>Opponent Team</h2>
+<table>
+  <thead><tr><th>Player</th><th>2PMiss</th><th>2PMade</th><th>3PMiss</th><th>3PMade</th><th>FTMiss</th><th>FTMade</th><th>OREB</th><th>DREB</th><th>STL</th><th>BLK</th><th>TO</th><th>Fouls</th><th>Assists</th><th>2P%</th><th>3P%</th><th>FG%</th><th>FT%</th><th>Total</th></tr></thead>
+  <tbody id="opponentTable"></tbody>
+  <tfoot id="opponentTotals"></tfoot>
+</table>
+
+<script>
+const statKeys = ["2pmissed","2pm","3pmissed","3pm","ftmissed","ftm","oreb","dreb","stl","blk","to","fouls","assists"];
+let players = { home: [], opponent: [newPlayer("Opponent")] };
+
+function newPlayer(name) {
+  let p = { name, totalPoints: 0 };
+  statKeys.forEach(k => p[k] = 0);
+  return p;
+}
+
+function update(p) {
+  p.totalPoints = p["2pm"] * 2 + p["3pm"] * 3 + p["ftm"];
+}
+
+function render(team) {
+  const tbody = document.getElementById(team + "Table");
+  const tfoot = document.getElementById(team + "Totals");
+  tbody.innerHTML = "";
+  tfoot.innerHTML = "";
+  let totals = {}; statKeys.forEach(k => totals[k] = 0); totals.totalPoints = 0;
+
+  players[team].forEach(p => {
+    const tr = document.createElement("tr");
+    const tdName = document.createElement("td");
+    const input = document.createElement("input");
+    input.value = p.name;
+    input.onchange = e => p.name = e.target.value;
+    input.style = "background:transparent;border:none;color:white;text-align:center;";
+    tdName.appendChild(input);
+    tr.appendChild(tdName);
+
+    statKeys.forEach(k => {
+      const td = document.createElement("td");
+      const div = document.createElement("div"); div.className = "stat-buttons";
+      const minus = document.createElement("button"); minus.textContent = "-";
+      const plus = document.createElement("button"); plus.textContent = "+";
+      const span = document.createElement("span"); span.textContent = p[k];
+      minus.onclick = () => { if (p[k]>0) p[k]--; update(p); render(team); };
+      plus.onclick = () => { p[k]++; update(p); render(team); };
+      div.append(minus, span, plus);
+      td.appendChild(div);
+      tr.appendChild(td);
+      totals[k] += p[k];
+    });
+
+    update(p);
+    
+    const td2pPct = document.createElement("td");
+    td2pPct.textContent = formatPct(p["2pm"], p["2pmissed"]);
+    tr.appendChild(td2pPct);
+
+    const td3pPct = document.createElement("td");
+    td3pPct.textContent = formatPct(p["3pm"], p["3pmissed"]);
+    tr.appendChild(td3pPct);
+
+    const fgMade = p["2pm"] + p["3pm"];
+    const fgMissed = p["2pmissed"] + p["3pmissed"];
+    const tdFgPct = document.createElement("td");
+    tdFgPct.textContent = formatPct(fgMade, fgMissed);
+    tr.appendChild(tdFgPct);
+
+    const tdFtPct = document.createElement("td");
+    tdFtPct.textContent = formatPct(p["ftm"], p["ftmissed"]);
+    tr.appendChild(tdFtPct);
+
+    const tdTotal = document.createElement("td");
+    tdTotal.textContent = p.totalPoints;
+    tr.appendChild(tdTotal);
+    tbody.appendChild(tr);
+    totals.totalPoints += p.totalPoints;
+  });
+
+  const row = document.createElement("tr");
+  row.innerHTML = `<td>Totals</td>` + statKeys.map(k => `<td>${totals[k]}</td>`).join('') + `<td>${formatPct(totals["2pm"], totals["2pmissed"])}</td><td>${formatPct(totals["3pm"], totals["3pmissed"])}</td><td>${formatPct(totals["2pm"] + totals["3pm"], totals["2pmissed"] + totals["3pmissed"])}</td><td>${formatPct(totals["ftm"], totals["ftmissed"])}</td><td>${totals.totalPoints}</td>`;
+  tfoot.appendChild(row);
+}
+
+function addPlayer(team) {
+  players[team].push(newPlayer("New Player"));
+  render(team);
+}
+
+function zoom(step) {
+  document.body.style.zoom = (parseFloat(document.body.style.zoom)||1) + step;
+}
+
+function formatStat(made, missed) {
+  return `${made}-${made + missed}`;
+}
+
+function formatPct(made, missed) {
+  const att = made + missed;
+  return att ? ((made / att) * 100).toFixed(1) + "%" : "0.0%";
+}
+
+function generateBoxScore() {
+  let html = "<html><head><title>Box Score</title><style>body{font-family:sans-serif;background:#1a1a1a;color:#fff;padding:20px;}h2{color:#e4002b;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #666;padding:6px;text-align:center;}th{background:#e4002b;color:white;}tfoot td{font-weight:bold;background:#333;}</style></head><body>";
+  html += "<h2>Southern Maryland Rising Stars – Box Score</h2>";
+
+  ["home", "opponent"].forEach(team => {
+    html += `<h3>${team === "home" ? "Home" : "Opponent"}</h3>`;
+    html += "<table><thead><tr><th>Player</th><th>FG</th><th>FG%</th><th>3PT</th><th>3PT%</th><th>FT</th><th>FT%</th><th>OREB</th><th>DREB</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>PTS</th></tr></thead><tbody>";
+
+    let totals = {}; statKeys.forEach(k => totals[k]=0); totals.totalPoints=0;
+
+    players[team].forEach(p => {
+      const fgMade = p["2pm"] + p["3pm"];
+      const fgMissed = p["2pmissed"] + p["3pmissed"];
+      const fgAtt = fgMade + fgMissed;
+      const points = p["2pm"] * 2 + p["3pm"] * 3 + p["ftm"];
+
+      html += `<tr><td>${p.name}</td>`;
+      html += `<td>${formatStat(fgMade, fgMissed)}</td><td>${formatPct(fgMade, fgMissed)}</td>`;
+      html += `<td>${formatStat(p["3pm"], p["3pmissed"])}</td><td>${formatPct(p["3pm"], p["3pmissed"])}</td>`;
+      html += `<td>${formatStat(p["ftm"], p["ftmissed"])}</td><td>${formatPct(p["ftm"], p["ftmissed"])}</td>`;
+      html += `<td>${p["oreb"]}</td><td>${p["dreb"]}</td><td>${p["oreb"] + p["dreb"]}</td>`;
+      html += `<td>${p["assists"]}</td><td>${p["stl"]}</td><td>${p["blk"]}</td><td>${p["to"]}</td><td>${points}</td></tr>`;
+
+      statKeys.forEach(k => totals[k] += p[k]);
+      totals.totalPoints += points;
+    });
+
+    const fgMade = totals["2pm"] + totals["3pm"];
+    const fgMissed = totals["2pmissed"] + totals["3pmissed"];
+    const fgTotal = formatStat(fgMade, fgMissed);
+    const fgPct = formatPct(fgMade, fgMissed);
+    const threeTotal = formatStat(totals["3pm"], totals["3pmissed"]);
+    const threePct = formatPct(totals["3pm"], totals["3pmissed"]);
+    const ftTotal = formatStat(totals["ftm"], totals["ftmissed"]);
+    const ftPct = formatPct(totals["ftm"], totals["ftmissed"]);
+    const rebTotal = totals["oreb"] + totals["dreb"];
+
+    html += `</tbody><tfoot><tr><td>Team Total</td><td>${fgTotal}</td><td>${fgPct}</td><td>${threeTotal}</td><td>${threePct}</td><td>${ftTotal}</td><td>${ftPct}</td>`;
+    html += `<td>${totals["oreb"]}</td><td>${totals["dreb"]}</td><td>${rebTotal}</td><td>${totals["assists"]}</td><td>${totals["stl"]}</td><td>${totals["blk"]}</td><td>${totals["to"]}</td><td>${totals.totalPoints}</td></tr></tfoot></table><br>`;
+  });
+
+  html += "</body></html>";
+  const w = window.open("", "_blank");
+  w.document.write(html); w.document.close();
+}
+
+function loadSelectedPlayers() {
+  const select = document.getElementById("playerSelect");
+  players.home = Array.from(select.selectedOptions).map(o => newPlayer(o.value));
+  document.getElementById("setup-bar")?.remove();
+  document.getElementById("gameControls").style.display = "block";
+  render("home");
+  render("opponent");
+}
+
+function exportToCSV() {
+  const rows = [];
+  const statKeys = ["2pmissed","2pm","3pmissed","3pm","ftmissed","ftm","oreb","dreb","stl","blk","to","fouls","assists","totalPoints"];
+  const addRows = (teamName, teamData) => {
+    teamData.forEach(p => {
+      const row = [teamName, p.name];
+      statKeys.forEach(k => row.push(p[k] || 0));
+      rows.push(row);
+    });
+  };
+  const header = ["Team", "Player", ...statKeys];
+  rows.unshift(header);
+  addRows("Home", players.home || []);
+  addRows("Opponent", players.opponent || []);
+
+  const csv = rows.map(r => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "game_stats.csv";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+</script>
+</body>
+</html>
