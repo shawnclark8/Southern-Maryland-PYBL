@@ -5,14 +5,11 @@
   <meta charset="UTF-8" />
   <title>Virginia Elite – HoopStats</title>
   <style>
-    body { font-family: sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
-    h1 { color: #e4002b; text-align: center; }
-    .button-bar, .setup-bar { text-align: center; margin-bottom: 20px; }
-    select, button, input { padding: 5px 10px; font-size: 14px; margin: 5px; }
-    table { width: 100%; border-collapse: collapse; background: #222; color: #fff; }
-    th, td { border: 1px solid #555; padding: 6px; text-align: center; }
-    th { background: #e4002b; }
-    tfoot td { font-weight: bold; background: #333; }
+    body { font-family: sans-serif; background: #000; color: #fff; padding: 20px; }
+h1 { color: #fff; text-align: center; }
+table { width: 100%; border-collapse: collapse; background: #111; color: #fff; }
+th { background: #444; }
+tfoot td { font-weight: bold; background: #222; }
     .stat-buttons { display: flex; justify-content: center; gap: 4px; }
   </style>
 </head>
@@ -157,7 +154,7 @@ function formatPct(made, missed) {
 }
 
 function generateBoxScore() {
-  let html = "<html><head><title>Box Score</title><style>body{font-family:sans-serif;background:#1a1a1a;color:#fff;padding:20px;}h2{color:#e4002b;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #666;padding:6px;text-align:center;}th{background:#e4002b;color:white;}tfoot td{font-weight:bold;background:#333;}</style></head><body>";
+  let html = "<html><head><title>Box Score</title><style>body{font-family:sans-serif;background:#000;color:#fff;padding:20px;}h2{color:#fff;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #666;padding:6px;text-align:center;}th{background:#444;color:white;}tfoot td{font-weight:bold;background:#222;}</style></head><body>";
   html += "<h2>Virgnia Elite – Box Score</h2>";
 
   ["home", "opponent"].forEach(team => {
